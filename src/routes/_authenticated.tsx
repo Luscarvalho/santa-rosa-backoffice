@@ -7,15 +7,7 @@ import {
 import { signOut } from "@/services/auth.service";
 import { Button } from "@/components/ui/button";
 import { useCurrentUserProfile } from "@/hooks/useCurrentUserProfile";
-import {
-  LayoutDashboard,
-  LogOut,
-  Package,
-  ShoppingBasket,
-  Store,
-  Users,
-  Warehouse,
-} from "lucide-react";
+import { LayoutDashboard, LogOut, Map, Truck, UserCheck } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: ({ context }) => {
@@ -39,15 +31,9 @@ function AuthenticatedLayout() {
 
   const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-    { icon: ShoppingBasket, label: "Produtos", path: "/products" },
-    { icon: Users, label: "Usuários", path: "/users" },
-    {
-      icon: Warehouse,
-      label: "Centros de Distribuição",
-      path: "/distribution-centers",
-    },
-    { icon: Store, label: "Filiais", path: "/branches" },
-    { icon: Package, label: "Estoque", path: "/stock" },
+    { icon: Truck, label: "Veículos", path: "/vehicles" },
+    { icon: UserCheck, label: "Motoristas", path: "/drivers" },
+    { icon: Map, label: "Rotas", path: "/routes" },
   ];
 
   return (

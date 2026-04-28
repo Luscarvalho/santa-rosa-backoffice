@@ -12,6 +12,9 @@ import { Route as rootRouteImport } from "./routes/__root"
 import { Route as LoginRouteImport } from "./routes/login"
 import { Route as AuthenticatedRouteImport } from "./routes/_authenticated"
 import { Route as IndexRouteImport } from "./routes/index"
+import { Route as AuthenticatedVehiclesRouteImport } from "./routes/_authenticated/vehicles"
+import { Route as AuthenticatedRoutesRouteImport } from "./routes/_authenticated/routes"
+import { Route as AuthenticatedDriversRouteImport } from "./routes/_authenticated/drivers"
 import { Route as AuthenticatedDashboardRouteImport } from "./routes/_authenticated/dashboard"
 
 const LoginRoute = LoginRouteImport.update({
@@ -28,6 +31,21 @@ const IndexRoute = IndexRouteImport.update({
   path: "/",
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedVehiclesRoute = AuthenticatedVehiclesRouteImport.update({
+  id: "/vehicles",
+  path: "/vehicles",
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedRoutesRoute = AuthenticatedRoutesRouteImport.update({
+  id: "/routes",
+  path: "/routes",
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedDriversRoute = AuthenticatedDriversRouteImport.update({
+  id: "/drivers",
+  path: "/drivers",
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: "/dashboard",
   path: "/dashboard",
@@ -38,11 +56,17 @@ export interface FileRoutesByFullPath {
   "/": typeof IndexRoute
   "/login": typeof LoginRoute
   "/dashboard": typeof AuthenticatedDashboardRoute
+  "/drivers": typeof AuthenticatedDriversRoute
+  "/routes": typeof AuthenticatedRoutesRoute
+  "/vehicles": typeof AuthenticatedVehiclesRoute
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute
   "/login": typeof LoginRoute
   "/dashboard": typeof AuthenticatedDashboardRoute
+  "/drivers": typeof AuthenticatedDriversRoute
+  "/routes": typeof AuthenticatedRoutesRoute
+  "/vehicles": typeof AuthenticatedVehiclesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -50,18 +74,30 @@ export interface FileRoutesById {
   "/_authenticated": typeof AuthenticatedRouteWithChildren
   "/login": typeof LoginRoute
   "/_authenticated/dashboard": typeof AuthenticatedDashboardRoute
+  "/_authenticated/drivers": typeof AuthenticatedDriversRoute
+  "/_authenticated/routes": typeof AuthenticatedRoutesRoute
+  "/_authenticated/vehicles": typeof AuthenticatedVehiclesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: "/" | "/login" | "/dashboard"
+  fullPaths:
+    | "/"
+    | "/login"
+    | "/dashboard"
+    | "/drivers"
+    | "/routes"
+    | "/vehicles"
   fileRoutesByTo: FileRoutesByTo
-  to: "/" | "/login" | "/dashboard"
+  to: "/" | "/login" | "/dashboard" | "/drivers" | "/routes" | "/vehicles"
   id:
     | "__root__"
     | "/"
     | "/_authenticated"
     | "/login"
     | "/_authenticated/dashboard"
+    | "/_authenticated/drivers"
+    | "/_authenticated/routes"
+    | "/_authenticated/vehicles"
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -93,6 +129,27 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    "/_authenticated/vehicles": {
+      id: "/_authenticated/vehicles"
+      path: "/vehicles"
+      fullPath: "/vehicles"
+      preLoaderRoute: typeof AuthenticatedVehiclesRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    "/_authenticated/routes": {
+      id: "/_authenticated/routes"
+      path: "/routes"
+      fullPath: "/routes"
+      preLoaderRoute: typeof AuthenticatedRoutesRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    "/_authenticated/drivers": {
+      id: "/_authenticated/drivers"
+      path: "/drivers"
+      fullPath: "/drivers"
+      preLoaderRoute: typeof AuthenticatedDriversRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     "/_authenticated/dashboard": {
       id: "/_authenticated/dashboard"
       path: "/dashboard"
@@ -105,10 +162,16 @@ declare module "@tanstack/react-router" {
 
 interface AuthenticatedRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedDriversRoute: typeof AuthenticatedDriversRoute
+  AuthenticatedRoutesRoute: typeof AuthenticatedRoutesRoute
+  AuthenticatedVehiclesRoute: typeof AuthenticatedVehiclesRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedDriversRoute: AuthenticatedDriversRoute,
+  AuthenticatedRoutesRoute: AuthenticatedRoutesRoute,
+  AuthenticatedVehiclesRoute: AuthenticatedVehiclesRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
