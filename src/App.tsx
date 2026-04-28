@@ -7,6 +7,8 @@ import { useAuthStore } from "@/store/auth.store";
 
 import { routeTree } from "./routeTree.gen";
 
+import { ThemeProvider } from "@/components/theme-provider";
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -49,9 +51,11 @@ function App() {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} context={{ isAuthenticated }} />
-    </QueryClientProvider>
+    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} context={{ isAuthenticated }} />
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }
 

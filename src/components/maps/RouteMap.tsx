@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  useSyncExternalStore,
+} from "react";
 import {
   Map,
   AdvancedMarker,
@@ -6,6 +12,7 @@ import {
   useMapsLibrary,
 } from "@vis.gl/react-google-maps";
 import { Locate, Undo2 } from "lucide-react";
+import { useTheme } from "../../hooks/useTheme";
 
 // Geographic center of Manaus
 const MANAUS_CENTER = { lat: -3.119, lng: -60.021 };
@@ -164,10 +171,6 @@ function MyLocationButton({ stops }: { stops: MapStop[] }) {
   const [loading, setLoading] = useState(false);
   const [showReturnToRoute, setShowReturnToRoute] = useState(false);
 
-  useEffect(() => {
-    if (stops.length === 0) setShowReturnToRoute(false);
-  }, [stops.length]);
-
   const handleClick = useCallback(() => {
     if (!map) return;
 
@@ -249,18 +252,37 @@ export function RouteMap({
   onDistanceChange,
   className,
 }: RouteMapProps) {
+  const { theme } = useTheme();
   const mapId = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID as string | undefined;
+  const systemTheme = useSyncExternalStore(
+    (onStoreChange) => {
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+      mediaQuery.addEventListener("change", onStoreChange);
+      return () => mediaQuery.removeEventListener("change", onStoreChange);
+    },
+    () =>
+      window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light",
+    () => "light",
+  );
+  const resolvedTheme = theme === "system" ? systemTheme : theme;
+  const mapFilter =
+    resolvedTheme === "dark"
+      ? "saturate(0.72) brightness(0.92) contrast(0.95)"
+      : "none";
 
   return (
     <div className={className} style={{ position: "relative" }}>
       <Map
         mapId={mapId ?? null}
+        colorScheme={resolvedTheme === "dark" ? "DARK" : "LIGHT"}
         defaultCenter={MANAUS_CENTER}
         defaultZoom={12}
         gestureHandling="greedy"
         disableDefaultUI={true}
         fullscreenControl={true}
-        style={{ width: "100%", height: "100%" }}
+        style={{ width: "100%", height: "100%", filter: mapFilter }}
       >
         <AutoGeolocate hasStops={stops.length > 0} />
         <BoundsFitter stops={stops} />

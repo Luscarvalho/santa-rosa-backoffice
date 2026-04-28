@@ -346,17 +346,20 @@ function PlannerContent({
 
   // ── Derived data ───────────────────────────────────────────────────────────
 
-  const mapStops: MapStop[] = useMemo(
-    () =>
-      stops
-        .filter((s) => s.lat !== null && s.lng !== null)
-        .map((s, idx) => ({
-          lat: s.lat!,
-          lng: s.lng!,
-          label: `Parada ${idx + 1}: ${s.recipientName || "Sem nome"}`,
-        })),
-    [stops],
-  );
+  const mapStops: MapStop[] = useMemo(() => {
+    let idx = 0;
+    return stops.flatMap((s) =>
+      s.lat !== null && s.lng !== null
+        ? [
+            {
+              lat: s.lat,
+              lng: s.lng,
+              label: `Parada ${++idx}: ${s.recipientName || "Sem nome"}`,
+            },
+          ]
+        : [],
+    );
+  }, [stops]);
 
   const driver = drivers?.find((d) => d.id === route.driverId);
   const vehicle = vehicles?.find((v) => v.id === route.vehicleId);

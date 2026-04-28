@@ -8,6 +8,7 @@ import { signOut } from "@/services/auth.service";
 import { Button } from "@/components/ui/button";
 import { useCurrentUserProfile } from "@/hooks/useCurrentUserProfile";
 import { LayoutDashboard, LogOut, Map, Truck, UserCheck } from "lucide-react";
+import { ModeToggle } from "@/components/mode-toggle";
 
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: ({ context }) => {
@@ -17,6 +18,13 @@ export const Route = createFileRoute("/_authenticated")({
   },
   component: AuthenticatedLayout,
 });
+
+const menuItems = [
+  { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
+  { icon: Truck, label: "Veículos", path: "/vehicles" },
+  { icon: UserCheck, label: "Motoristas", path: "/drivers" },
+  { icon: Map, label: "Rotas", path: "/routes" },
+];
 
 function AuthenticatedLayout() {
   const navigate = useNavigate();
@@ -29,13 +37,6 @@ function AuthenticatedLayout() {
     navigate({ to: "/login" });
   };
 
-  const menuItems = [
-    { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
-    { icon: Truck, label: "Veículos", path: "/vehicles" },
-    { icon: UserCheck, label: "Motoristas", path: "/drivers" },
-    { icon: Map, label: "Rotas", path: "/routes" },
-  ];
-
   return (
     <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
@@ -44,6 +45,7 @@ function AuthenticatedLayout() {
           <div className="p-6 border-b">
             <div className="flex items-center justify-between mb-1">
               <h1 className="text-xl font-bold">Santa Rosa</h1>
+              <ModeToggle />
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium">{name ?? "Usuário"}</span>
