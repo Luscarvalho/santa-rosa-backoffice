@@ -30,6 +30,8 @@ export function useCreateRoute() {
         | "startedAt"
         | "completedAt"
         | "completedDeliveries"
+        | "totalDeliveries"
+        | "estimatedDistance"
       >,
     ) => routeService.createRoute(data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: routeKeys.all }),

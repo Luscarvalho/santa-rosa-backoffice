@@ -1,9 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState } from "react";
-import { Plus, Pencil, Trash2, Search } from "lucide-react";
+import { MapPin, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -64,8 +64,6 @@ const routeSchema = z.object({
     RouteStatus.Completed,
     RouteStatus.Cancelled,
   ]),
-  totalDeliveries: z.number().min(1, "Deve ter ao menos 1 entrega"),
-  estimatedDistance: z.number().min(0, "Distância inválida"),
   notes: z.string(),
 });
 
@@ -89,6 +87,7 @@ const statusVariants: Record<
 };
 
 function RoutesPage() {
+  const navigate = useNavigate();
   const uid = useAuthStore((s) => s.uid);
   const { data: routes, isLoading } = useRoutes();
   const createRoute = useCreateRoute();
@@ -108,8 +107,6 @@ function RoutesPage() {
       driverId: "",
       vehicleId: "",
       status: RouteStatus.Pending,
-      totalDeliveries: 1,
-      estimatedDistance: 0,
       notes: "",
     },
   });
@@ -126,10 +123,12 @@ function RoutesPage() {
       if (Object.keys(changed).length > 0) {
         await updateRoute.mutateAsync({ id: editingRoute.id, data: changed });
       }
+      handleOpenChange(false);
     } else {
-      await createRoute.mutateAsync({ ...data, createdBy: uid! });
+      const id = await createRoute.mutateAsync({ ...data, createdBy: uid! });
+      handleOpenChange(false);
+      navigate({ to: "/routes/$routeId", params: { routeId: id } });
     }
-    handleOpenChange(false);
   };
 
   const handleEdit = (route: Route) => {
@@ -139,8 +138,6 @@ function RoutesPage() {
       driverId: route.driverId,
       vehicleId: route.vehicleId,
       status: route.status,
-      totalDeliveries: route.totalDeliveries,
-      estimatedDistance: route.estimatedDistance,
       notes: route.notes,
     });
     setIsDialogOpen(true);
@@ -284,51 +281,6 @@ function RoutesPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <Controller
-                    name="totalDeliveries"
-                    control={form.control}
-                    render={({ field, fieldState }) => (
-                      <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel>Total de entregas</FieldLabel>
-                        <Input
-                          {...field}
-                          type="number"
-                          aria-invalid={fieldState.invalid}
-                          onChange={(e) =>
-                            field.onChange(e.target.valueAsNumber)
-                          }
-                        />
-                        {fieldState.invalid && (
-                          <FieldError errors={[fieldState.error]} />
-                        )}
-                      </Field>
-                    )}
-                  />
-
-                  <Controller
-                    name="estimatedDistance"
-                    control={form.control}
-                    render={({ field, fieldState }) => (
-                      <Field data-invalid={fieldState.invalid}>
-                        <FieldLabel>Distância estimada (km)</FieldLabel>
-                        <Input
-                          {...field}
-                          type="number"
-                          placeholder="42.5"
-                          aria-invalid={fieldState.invalid}
-                          onChange={(e) =>
-                            field.onChange(e.target.valueAsNumber)
-                          }
-                        />
-                        {fieldState.invalid && (
-                          <FieldError errors={[fieldState.error]} />
-                        )}
-                      </Field>
-                    )}
-                  />
-                </div>
-
                 <Controller
                   name="status"
                   control={form.control}
@@ -434,7 +386,7 @@ function RoutesPage() {
                 <TableHead>Entregas</TableHead>
                 <TableHead>Distância</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="w-24">Ações</TableHead>
+                <TableHead className="w-36">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -479,6 +431,19 @@ function RoutesPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            title="Planejar paradas"
+                            onClick={() =>
+                              navigate({
+                                to: "/routes/$routeId",
+                                params: { routeId: route.id },
+                              })
+                            }
+                          >
+                            <MapPin className="h-4 w-4" />
+                          </Button>
                           <Button
                             variant="outline"
                             size="icon"

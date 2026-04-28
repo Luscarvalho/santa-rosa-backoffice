@@ -34,16 +34,21 @@ export async function createRoute(
     | "startedAt"
     | "completedAt"
     | "completedDeliveries"
+    | "totalDeliveries"
+    | "estimatedDistance"
   >,
-): Promise<void> {
-  await addDoc(ref, {
+): Promise<string> {
+  const docRef = await addDoc(ref, {
     ...data,
+    totalDeliveries: 0,
+    estimatedDistance: 0,
     completedDeliveries: 0,
     startedAt: null,
     completedAt: null,
     createdAt: serverTimestamp(),
     updatedAt: null,
   });
+  return docRef.id;
 }
 
 export async function updateRoute(

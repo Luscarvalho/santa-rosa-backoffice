@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { routeKeys } from "@/lib/query-keys";
 import * as deliveryService from "@/services/delivery.service";
 import type { Delivery } from "@/types/delivery";
+import type { StopInput } from "@/services/delivery.service";
 
 export function useDeliveries(routeId: string | undefined) {
   return useQuery({
@@ -71,5 +72,25 @@ export function useDeleteDelivery(routeId: string) {
       queryClient.invalidateQueries({
         queryKey: routeKeys.deliveries(routeId),
       }),
+  });
+}
+
+export function useReplaceDeliveries(routeId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      stops,
+      routeUpdate,
+    }: {
+      stops: StopInput[];
+      routeUpdate: { totalDeliveries: number; estimatedDistance: number };
+    }) => deliveryService.replaceDeliveries(routeId, stops, routeUpdate),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: routeKeys.deliveries(routeId),
+      });
+      queryClient.invalidateQueries({ queryKey: routeKeys.detail(routeId) });
+      queryClient.invalidateQueries({ queryKey: routeKeys.all });
+    },
   });
 }

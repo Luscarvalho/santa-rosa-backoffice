@@ -6,12 +6,14 @@ import {
   deleteDoc,
   getDocs,
   getDoc,
+  writeBatch,
   serverTimestamp,
   orderBy,
   query,
 } from "firebase/firestore";
 import { db } from "@lib/firebase";
-import type { Delivery } from "@/types/delivery";
+import type { Delivery, DeliveryAddress } from "@/types/delivery";
+import { DeliveryStatus } from "@/types/delivery";
 
 function deliveriesRef(routeId: string) {
   return collection(db, "routes", routeId, "deliveries");
@@ -74,4 +76,55 @@ export async function deleteDelivery(
   deliveryId: string,
 ): Promise<void> {
   await deleteDoc(doc(deliveriesRef(routeId), deliveryId));
+}
+
+export interface StopInput {
+  recipientName: string;
+  address: DeliveryAddress;
+  notes: string;
+}
+
+/**
+ * Atomically replaces all deliveries for a route and updates the route metadata.
+ * Safe to call only when the route is in "pending" status (no in-progress deliveries).
+ */
+export async function replaceDeliveries(
+  routeId: string,
+  stops: StopInput[],
+  routeUpdate: { totalDeliveries: number; estimatedDistance: number },
+): Promise<void> {
+  const batch = writeBatch(db);
+
+  // Delete all existing deliveries
+  const existing = await getDocs(deliveriesRef(routeId));
+  existing.docs.forEach((d) => batch.delete(d.ref));
+
+  // Create new deliveries in order
+  stops.forEach((stop, idx) => {
+    const newRef = doc(deliveriesRef(routeId));
+    batch.set(newRef, {
+      order: idx + 1,
+      recipientName: stop.recipientName,
+      address: stop.address,
+      status: DeliveryStatus.Pending,
+      notes: stop.notes,
+      deliveredAt: null,
+      deliveryPhoto: null,
+      recipientSignature: null,
+      failureReason: null,
+      attempts: 0,
+      createdAt: serverTimestamp(),
+      updatedAt: null,
+    });
+  });
+
+  // Update route summary fields
+  const routeRef = doc(db, "routes", routeId);
+  batch.update(routeRef, {
+    totalDeliveries: routeUpdate.totalDeliveries,
+    estimatedDistance: routeUpdate.estimatedDistance,
+    updatedAt: serverTimestamp(),
+  });
+
+  await batch.commit();
 }

@@ -16,6 +16,7 @@ import { Route as AuthenticatedVehiclesRouteImport } from "./routes/_authenticat
 import { Route as AuthenticatedRoutesRouteImport } from "./routes/_authenticated/routes"
 import { Route as AuthenticatedDriversRouteImport } from "./routes/_authenticated/drivers"
 import { Route as AuthenticatedDashboardRouteImport } from "./routes/_authenticated/dashboard"
+import { Route as AuthenticatedRoutesRouteIdRouteImport } from "./routes/_authenticated/routes_.$routeId"
 
 const LoginRoute = LoginRouteImport.update({
   id: "/login",
@@ -51,6 +52,12 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   path: "/dashboard",
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedRoutesRouteIdRoute =
+  AuthenticatedRoutesRouteIdRouteImport.update({
+    id: "/routes_/$routeId",
+    path: "/routes/$routeId",
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   "/": typeof IndexRoute
@@ -59,6 +66,7 @@ export interface FileRoutesByFullPath {
   "/drivers": typeof AuthenticatedDriversRoute
   "/routes": typeof AuthenticatedRoutesRoute
   "/vehicles": typeof AuthenticatedVehiclesRoute
+  "/routes/$routeId": typeof AuthenticatedRoutesRouteIdRoute
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute
@@ -67,6 +75,7 @@ export interface FileRoutesByTo {
   "/drivers": typeof AuthenticatedDriversRoute
   "/routes": typeof AuthenticatedRoutesRoute
   "/vehicles": typeof AuthenticatedVehiclesRoute
+  "/routes/$routeId": typeof AuthenticatedRoutesRouteIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -77,6 +86,7 @@ export interface FileRoutesById {
   "/_authenticated/drivers": typeof AuthenticatedDriversRoute
   "/_authenticated/routes": typeof AuthenticatedRoutesRoute
   "/_authenticated/vehicles": typeof AuthenticatedVehiclesRoute
+  "/_authenticated/routes_/$routeId": typeof AuthenticatedRoutesRouteIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -87,8 +97,16 @@ export interface FileRouteTypes {
     | "/drivers"
     | "/routes"
     | "/vehicles"
+    | "/routes/$routeId"
   fileRoutesByTo: FileRoutesByTo
-  to: "/" | "/login" | "/dashboard" | "/drivers" | "/routes" | "/vehicles"
+  to:
+    | "/"
+    | "/login"
+    | "/dashboard"
+    | "/drivers"
+    | "/routes"
+    | "/vehicles"
+    | "/routes/$routeId"
   id:
     | "__root__"
     | "/"
@@ -98,6 +116,7 @@ export interface FileRouteTypes {
     | "/_authenticated/drivers"
     | "/_authenticated/routes"
     | "/_authenticated/vehicles"
+    | "/_authenticated/routes_/$routeId"
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -157,6 +176,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    "/_authenticated/routes_/$routeId": {
+      id: "/_authenticated/routes_/$routeId"
+      path: "/routes/$routeId"
+      fullPath: "/routes/$routeId"
+      preLoaderRoute: typeof AuthenticatedRoutesRouteIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
   }
 }
 
@@ -165,6 +191,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedDriversRoute: typeof AuthenticatedDriversRoute
   AuthenticatedRoutesRoute: typeof AuthenticatedRoutesRoute
   AuthenticatedVehiclesRoute: typeof AuthenticatedVehiclesRoute
+  AuthenticatedRoutesRouteIdRoute: typeof AuthenticatedRoutesRouteIdRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -172,6 +199,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDriversRoute: AuthenticatedDriversRoute,
   AuthenticatedRoutesRoute: AuthenticatedRoutesRoute,
   AuthenticatedVehiclesRoute: AuthenticatedVehiclesRoute,
+  AuthenticatedRoutesRouteIdRoute: AuthenticatedRoutesRouteIdRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
