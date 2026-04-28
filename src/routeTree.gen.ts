@@ -13,6 +13,7 @@ import { Route as LoginRouteImport } from "./routes/login"
 import { Route as AuthenticatedRouteImport } from "./routes/_authenticated"
 import { Route as IndexRouteImport } from "./routes/index"
 import { Route as AuthenticatedVehiclesRouteImport } from "./routes/_authenticated/vehicles"
+import { Route as AuthenticatedTrackingRouteImport } from "./routes/_authenticated/tracking"
 import { Route as AuthenticatedRoutesRouteImport } from "./routes/_authenticated/routes"
 import { Route as AuthenticatedDriversRouteImport } from "./routes/_authenticated/drivers"
 import { Route as AuthenticatedDashboardRouteImport } from "./routes/_authenticated/dashboard"
@@ -35,6 +36,11 @@ const IndexRoute = IndexRouteImport.update({
 const AuthenticatedVehiclesRoute = AuthenticatedVehiclesRouteImport.update({
   id: "/vehicles",
   path: "/vehicles",
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedTrackingRoute = AuthenticatedTrackingRouteImport.update({
+  id: "/tracking",
+  path: "/tracking",
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedRoutesRoute = AuthenticatedRoutesRouteImport.update({
@@ -65,6 +71,7 @@ export interface FileRoutesByFullPath {
   "/dashboard": typeof AuthenticatedDashboardRoute
   "/drivers": typeof AuthenticatedDriversRoute
   "/routes": typeof AuthenticatedRoutesRoute
+  "/tracking": typeof AuthenticatedTrackingRoute
   "/vehicles": typeof AuthenticatedVehiclesRoute
   "/routes/$routeId": typeof AuthenticatedRoutesRouteIdRoute
 }
@@ -74,6 +81,7 @@ export interface FileRoutesByTo {
   "/dashboard": typeof AuthenticatedDashboardRoute
   "/drivers": typeof AuthenticatedDriversRoute
   "/routes": typeof AuthenticatedRoutesRoute
+  "/tracking": typeof AuthenticatedTrackingRoute
   "/vehicles": typeof AuthenticatedVehiclesRoute
   "/routes/$routeId": typeof AuthenticatedRoutesRouteIdRoute
 }
@@ -85,6 +93,7 @@ export interface FileRoutesById {
   "/_authenticated/dashboard": typeof AuthenticatedDashboardRoute
   "/_authenticated/drivers": typeof AuthenticatedDriversRoute
   "/_authenticated/routes": typeof AuthenticatedRoutesRoute
+  "/_authenticated/tracking": typeof AuthenticatedTrackingRoute
   "/_authenticated/vehicles": typeof AuthenticatedVehiclesRoute
   "/_authenticated/routes_/$routeId": typeof AuthenticatedRoutesRouteIdRoute
 }
@@ -96,6 +105,7 @@ export interface FileRouteTypes {
     | "/dashboard"
     | "/drivers"
     | "/routes"
+    | "/tracking"
     | "/vehicles"
     | "/routes/$routeId"
   fileRoutesByTo: FileRoutesByTo
@@ -105,6 +115,7 @@ export interface FileRouteTypes {
     | "/dashboard"
     | "/drivers"
     | "/routes"
+    | "/tracking"
     | "/vehicles"
     | "/routes/$routeId"
   id:
@@ -115,6 +126,7 @@ export interface FileRouteTypes {
     | "/_authenticated/dashboard"
     | "/_authenticated/drivers"
     | "/_authenticated/routes"
+    | "/_authenticated/tracking"
     | "/_authenticated/vehicles"
     | "/_authenticated/routes_/$routeId"
   fileRoutesById: FileRoutesById
@@ -155,6 +167,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof AuthenticatedVehiclesRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    "/_authenticated/tracking": {
+      id: "/_authenticated/tracking"
+      path: "/tracking"
+      fullPath: "/tracking"
+      preLoaderRoute: typeof AuthenticatedTrackingRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     "/_authenticated/routes": {
       id: "/_authenticated/routes"
       path: "/routes"
@@ -190,6 +209,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDriversRoute: typeof AuthenticatedDriversRoute
   AuthenticatedRoutesRoute: typeof AuthenticatedRoutesRoute
+  AuthenticatedTrackingRoute: typeof AuthenticatedTrackingRoute
   AuthenticatedVehiclesRoute: typeof AuthenticatedVehiclesRoute
   AuthenticatedRoutesRouteIdRoute: typeof AuthenticatedRoutesRouteIdRoute
 }
@@ -198,6 +218,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDriversRoute: AuthenticatedDriversRoute,
   AuthenticatedRoutesRoute: AuthenticatedRoutesRoute,
+  AuthenticatedTrackingRoute: AuthenticatedTrackingRoute,
   AuthenticatedVehiclesRoute: AuthenticatedVehiclesRoute,
   AuthenticatedRoutesRouteIdRoute: AuthenticatedRoutesRouteIdRoute,
 }

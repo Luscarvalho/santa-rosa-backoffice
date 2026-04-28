@@ -7,7 +7,14 @@ import {
 import { signOut } from "@/services/auth.service";
 import { Button } from "@/components/ui/button";
 import { useCurrentUserProfile } from "@/hooks/useCurrentUserProfile";
-import { LayoutDashboard, LogOut, Map, Truck, UserCheck } from "lucide-react";
+import {
+  LayoutDashboard,
+  LogOut,
+  Map,
+  Radio,
+  Truck,
+  UserCheck,
+} from "lucide-react";
 import { ModeToggle } from "@/components/mode-toggle";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -24,6 +31,7 @@ const menuItems = [
   { icon: Truck, label: "Veículos", path: "/vehicles" },
   { icon: UserCheck, label: "Motoristas", path: "/drivers" },
   { icon: Map, label: "Rotas", path: "/routes" },
+  { icon: Radio, label: "Rastreamento", path: "/tracking" },
 ];
 
 function AuthenticatedLayout() {
