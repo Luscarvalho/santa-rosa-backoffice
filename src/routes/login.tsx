@@ -69,7 +69,7 @@ function LoginPage() {
             className="space-y-4"
           >
             <FieldGroup>
-              <Field data-invalid={!!form.formState.errors.email || undefined}>
+              <Field data-invalid={!!form.formState.errors.email}>
                 <FieldLabel htmlFor="login-email">Email</FieldLabel>
                 <Input
                   {...form.register("email")}
@@ -84,9 +84,7 @@ function LoginPage() {
                   <FieldError errors={[form.formState.errors.email]} />
                 )}
               </Field>
-              <Field
-                data-invalid={!!form.formState.errors.password || undefined}
-              >
+              <Field data-invalid={!!form.formState.errors.password}>
                 <FieldLabel htmlFor="login-password">Senha</FieldLabel>
                 <Input
                   {...form.register("password")}

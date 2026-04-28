@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useAuthStore } from "@/store/auth.store";
-import { useUserDoc } from "@/hooks/useUserDoc";
+import { useCurrentUserProfile } from "@/hooks/useCurrentUserProfile";
 import {
   Card,
   CardContent,
@@ -10,17 +9,14 @@ import {
 } from "@/components/ui/card";
 
 function DashboardPage() {
-  const uid = useAuthStore((s) => s.uid);
-  const displayName = useAuthStore((s) => s.displayName);
-  const email = useAuthStore((s) => s.email);
-  const { data: userDoc } = useUserDoc(uid ?? undefined);
+  const { name, email, role } = useCurrentUserProfile();
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold tracking-tight">Dashboard</h2>
         <p className="text-muted-foreground">
-          Bem-vindo, {userDoc?.name ?? displayName ?? email}
+          Bem-vindo, {name ?? email ?? "Usuário"}
         </p>
       </div>
 
@@ -28,11 +24,11 @@ function DashboardPage() {
         <Card>
           <CardHeader>
             <CardDescription>Seu perfil</CardDescription>
-            <CardTitle>{userDoc?.name ?? displayName ?? "—"}</CardTitle>
+            <CardTitle>{name ?? "—"}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground text-sm">
-              Cargo: {userDoc?.role ?? "—"}
+              Cargo: {role ?? "—"}
             </p>
           </CardContent>
         </Card>

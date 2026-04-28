@@ -1,3 +1,5 @@
+import { FirebaseError } from "firebase/app";
+
 const firebaseErrorMessages: Record<string, string> = {
   "auth/user-not-found": "Usuário não encontrado",
   "auth/wrong-password": "Senha incorreta",
@@ -10,11 +12,14 @@ const firebaseErrorMessages: Record<string, string> = {
   "auth/email-already-in-use": "Este email já está em uso",
 };
 
+function isFirebaseError(error: unknown): error is FirebaseError {
+  return error instanceof FirebaseError;
+}
+
 export function getFirebaseErrorMessage(error: unknown): string {
-  if (error instanceof Error && "code" in error) {
+  if (isFirebaseError(error)) {
     return (
-      firebaseErrorMessages[(error as { code: string }).code] ??
-      "Erro inesperado. Tente novamente."
+      firebaseErrorMessages[error.code] ?? "Erro inesperado. Tente novamente."
     );
   }
   return "Erro ao fazer login. Tente novamente.";

@@ -4,9 +4,9 @@ import {
   redirect,
   useNavigate,
 } from "@tanstack/react-router";
-import { useAuthStore } from "@/store/auth.store";
 import { signOut } from "@/services/auth.service";
 import { Button } from "@/components/ui/button";
+import { useCurrentUserProfile } from "@/hooks/useCurrentUserProfile";
 import {
   LayoutDashboard,
   LogOut,
@@ -28,15 +28,14 @@ export const Route = createFileRoute("/_authenticated")({
 
 function AuthenticatedLayout() {
   const navigate = useNavigate();
-  const displayName = useAuthStore((s) => s.displayName);
-  const email = useAuthStore((s) => s.email);
+  const { name, email } = useCurrentUserProfile();
+
+  const avatarInitial = name?.[0]?.toUpperCase() || "U";
 
   const handleLogout = async () => {
     await signOut();
     navigate({ to: "/login" });
   };
-
-  const avatarInitial = displayName?.charAt(0).toUpperCase() ?? email?.charAt(0).toUpperCase() ?? "?";
 
   const menuItems = [
     { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
@@ -58,12 +57,10 @@ function AuthenticatedLayout() {
         <div className="flex flex-col h-full">
           <div className="p-6 border-b">
             <div className="flex items-center justify-between mb-1">
-              <h1 className="text-xl font-bold">Santa Brasa</h1>
+              <h1 className="text-xl font-bold">Santa Rosa</h1>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">
-                {displayName ?? email}
-              </span>
+              <span className="text-sm font-medium">{name ?? "Usuário"}</span>
             </div>
           </div>
 
@@ -87,7 +84,7 @@ function AuthenticatedLayout() {
               </div>
               <div className="ml-3 flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">
-                  {displayName ?? "Usuário"}
+                  {name ?? "Usuário"}
                 </p>
                 <p className="text-xs text-muted-foreground truncate">
                   {email}
