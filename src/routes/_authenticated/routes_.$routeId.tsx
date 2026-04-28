@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { APIProvider, useMapsLibrary } from "@vis.gl/react-google-maps";
 import {
   ArrowLeft,
@@ -346,13 +346,17 @@ function PlannerContent({
 
   // ── Derived data ───────────────────────────────────────────────────────────
 
-  const mapStops: MapStop[] = stops
-    .filter((s) => s.lat !== null && s.lng !== null)
-    .map((s, idx) => ({
-      lat: s.lat!,
-      lng: s.lng!,
-      label: `Parada ${idx + 1}: ${s.recipientName || "Sem nome"}`,
-    }));
+  const mapStops: MapStop[] = useMemo(
+    () =>
+      stops
+        .filter((s) => s.lat !== null && s.lng !== null)
+        .map((s, idx) => ({
+          lat: s.lat!,
+          lng: s.lng!,
+          label: `Parada ${idx + 1}: ${s.recipientName || "Sem nome"}`,
+        })),
+    [stops],
+  );
 
   const driver = drivers?.find((d) => d.id === route.driverId);
   const vehicle = vehicles?.find((v) => v.id === route.vehicleId);

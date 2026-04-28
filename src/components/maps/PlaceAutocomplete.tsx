@@ -40,9 +40,16 @@ export function PlaceAutocomplete({
   useEffect(() => {
     if (!placesLib || !inputRef.current) return;
 
+    const manausBounds = new google.maps.LatLngBounds(
+      { lat: -3.2, lng: -60.2 },
+      { lat: -2.9, lng: -59.8 },
+    );
+
     const autocomplete = new placesLib.Autocomplete(inputRef.current, {
       fields: ["formatted_address", "geometry"],
       componentRestrictions: { country: "br" },
+      bounds: manausBounds,
+      strictBounds: false,
     });
 
     const listener = autocomplete.addListener("place_changed", () => {

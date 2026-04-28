@@ -5,10 +5,10 @@ import {
   useMap,
   useMapsLibrary,
 } from "@vis.gl/react-google-maps";
-import { Locate } from "lucide-react";
+import { Locate, Undo2 } from "lucide-react";
 
-// Geographic center of Brazil
-const BRAZIL_CENTER = { lat: -14.235, lng: -51.925 };
+// Geographic center of Manaus
+const MANAUS_CENTER = { lat: -3.119, lng: -60.021 };
 
 export interface MapStop {
   lat: number;
@@ -21,11 +21,25 @@ interface DirectionsLayerProps {
   onDistanceChange?: (km: number) => void;
 }
 
+function fitMapToStops(map: google.maps.Map, stops: MapStop[]) {
+  if (stops.length === 0) return;
+  if (stops.length === 1) {
+    map.setCenter({ lat: stops[0].lat, lng: stops[0].lng });
+    map.setZoom(14);
+    return;
+  }
+
+  const bounds = new google.maps.LatLngBounds();
+  stops.forEach((s) => bounds.extend({ lat: s.lat, lng: s.lng }));
+  map.fitBounds(bounds, 80);
+}
+
 /** Renders the route polyline using Directions API. Must be a child of <Map>. */
 function DirectionsLayer({ stops, onDistanceChange }: DirectionsLayerProps) {
   const map = useMap();
   const routesLib = useMapsLibrary("routes");
   const rendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
+  const lastStopsGeoKeyRef = useRef("");
 
   // Create and attach renderer once
   useEffect(() => {
@@ -46,43 +60,52 @@ function DirectionsLayer({ stops, onDistanceChange }: DirectionsLayerProps) {
     };
   }, [routesLib, map]);
 
-  // Re-compute route whenever stops change
+  // Re-compute route whenever stops change (debounced to save API calls)
   useEffect(() => {
     if (!routesLib || !rendererRef.current) return;
+
+    const stopsGeoKey = stops.map((s) => `${s.lat},${s.lng}`).join("|");
+    if (stopsGeoKey === lastStopsGeoKeyRef.current) return;
+    lastStopsGeoKeyRef.current = stopsGeoKey;
 
     if (stops.length < 2) {
       rendererRef.current.setDirections({ routes: [] } as never);
       return;
     }
 
-    const service = new routesLib.DirectionsService();
-    const origin = stops[0];
-    const destination = stops[stops.length - 1];
-    const waypoints = stops.slice(1, -1).map((s) => ({
-      location: new google.maps.LatLng(s.lat, s.lng),
-      stopover: true,
-    }));
+    const timer = setTimeout(() => {
+      if (!rendererRef.current) return;
+      const service = new routesLib.DirectionsService();
+      const origin = stops[0];
+      const destination = stops[stops.length - 1];
+      const waypoints = stops.slice(1, -1).map((s) => ({
+        location: new google.maps.LatLng(s.lat, s.lng),
+        stopover: true,
+      }));
 
-    service.route(
-      {
-        origin: new google.maps.LatLng(origin.lat, origin.lng),
-        destination: new google.maps.LatLng(destination.lat, destination.lng),
-        waypoints,
-        optimizeWaypoints: false,
-        travelMode: routesLib.TravelMode.DRIVING,
-      },
-      (result, status) => {
-        if (status !== "OK" || !result || !rendererRef.current) return;
-        rendererRef.current.setDirections(result);
-        if (onDistanceChange) {
-          const totalMeters = result.routes[0].legs.reduce(
-            (sum, leg) => sum + (leg.distance?.value ?? 0),
-            0,
-          );
-          onDistanceChange(Math.round(totalMeters / 100) / 10);
-        }
-      },
-    );
+      service.route(
+        {
+          origin: new google.maps.LatLng(origin.lat, origin.lng),
+          destination: new google.maps.LatLng(destination.lat, destination.lng),
+          waypoints,
+          optimizeWaypoints: false,
+          travelMode: routesLib.TravelMode.DRIVING,
+        },
+        (result, status) => {
+          if (status !== "OK" || !result || !rendererRef.current) return;
+          rendererRef.current.setDirections(result);
+          if (onDistanceChange) {
+            const totalMeters = result.routes[0].legs.reduce(
+              (sum, leg) => sum + (leg.distance?.value ?? 0),
+              0,
+            );
+            onDistanceChange(Math.round(totalMeters / 100) / 10);
+          }
+        },
+      );
+    }, 800);
+
+    return () => clearTimeout(timer);
   }, [stops, routesLib, onDistanceChange]);
 
   return null;
@@ -91,18 +114,39 @@ function DirectionsLayer({ stops, onDistanceChange }: DirectionsLayerProps) {
 /** Fits the map bounds to the given stops. Must be a child of <Map>. */
 function BoundsFitter({ stops }: { stops: MapStop[] }) {
   const map = useMap();
+  const lastStopsGeoKeyRef = useRef("");
 
   useEffect(() => {
-    if (!map || stops.length === 0) return;
-    if (stops.length === 1) {
-      map.setCenter({ lat: stops[0].lat, lng: stops[0].lng });
-      map.setZoom(14);
+    if (!map || stops.length === 0) {
+      lastStopsGeoKeyRef.current = "";
       return;
     }
-    const bounds = new google.maps.LatLngBounds();
-    stops.forEach((s) => bounds.extend({ lat: s.lat, lng: s.lng }));
-    map.fitBounds(bounds, 80);
+
+    const stopsGeoKey = stops.map((s) => `${s.lat},${s.lng}`).join("|");
+    if (stopsGeoKey === lastStopsGeoKeyRef.current) return;
+    lastStopsGeoKeyRef.current = stopsGeoKey;
+
+    fitMapToStops(map, stops);
   }, [map, stops]);
+
+  return null;
+}
+
+/** Auto-pan to user location on mount when there are no stops. */
+function AutoGeolocate({ hasStops }: { hasStops: boolean }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!map || hasStops || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        map.panTo({ lat: coords.latitude, lng: coords.longitude });
+        map.setZoom(12);
+      },
+      () => {},
+      { enableHighAccuracy: false, timeout: 8000 },
+    );
+  }, [map, hasStops]);
 
   return null;
 }
@@ -115,29 +159,50 @@ interface RouteMapProps {
 
 // ─── My Location button ───────────────────────────────────────────────────────
 
-function MyLocationButton() {
+function MyLocationButton({ stops }: { stops: MapStop[] }) {
   const map = useMap();
   const [loading, setLoading] = useState(false);
+  const [showReturnToRoute, setShowReturnToRoute] = useState(false);
+
+  useEffect(() => {
+    if (stops.length === 0) setShowReturnToRoute(false);
+  }, [stops.length]);
 
   const handleClick = useCallback(() => {
-    if (!map || !navigator.geolocation) return;
+    if (!map) return;
+
+    if (showReturnToRoute && stops.length > 0) {
+      fitMapToStops(map, stops);
+      setShowReturnToRoute(false);
+      return;
+    }
+
+    if (!navigator.geolocation) return;
+
     setLoading(true);
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
         map.panTo({ lat: coords.latitude, lng: coords.longitude });
         map.setZoom(16);
+        setShowReturnToRoute(stops.length > 0);
         setLoading(false);
       },
       () => setLoading(false),
       { enableHighAccuracy: true, timeout: 8000 },
     );
-  }, [map]);
+  }, [map, showReturnToRoute, stops]);
+
+  const isReturnMode = showReturnToRoute && stops.length > 0;
 
   return (
     <button
       type="button"
       onClick={handleClick}
-      title="Ir para minha localização"
+      title={
+        isReturnMode
+          ? "Voltar para visão completa da rota"
+          : "Ir para minha localização"
+      }
       style={{
         position: "absolute",
         bottom: 10,
@@ -155,11 +220,19 @@ function MyLocationButton() {
         zIndex: 10,
       }}
     >
-      <Locate
-        size={20}
-        color={loading ? "#999" : "#444"}
-        style={{ flexShrink: 0 }}
-      />
+      {isReturnMode ? (
+        <Undo2
+          size={20}
+          color={loading ? "#999" : "#444"}
+          style={{ flexShrink: 0 }}
+        />
+      ) : (
+        <Locate
+          size={20}
+          color={loading ? "#999" : "#444"}
+          style={{ flexShrink: 0 }}
+        />
+      )}
     </button>
   );
 }
@@ -182,13 +255,14 @@ export function RouteMap({
     <div className={className} style={{ position: "relative" }}>
       <Map
         mapId={mapId ?? null}
-        defaultCenter={BRAZIL_CENTER}
-        defaultZoom={5}
+        defaultCenter={MANAUS_CENTER}
+        defaultZoom={12}
         gestureHandling="greedy"
         disableDefaultUI={true}
         fullscreenControl={true}
         style={{ width: "100%", height: "100%" }}
       >
+        <AutoGeolocate hasStops={stops.length > 0} />
         <BoundsFitter stops={stops} />
 
         {stops.map((stop, idx) => (
@@ -225,7 +299,7 @@ export function RouteMap({
 
         <DirectionsLayer stops={stops} onDistanceChange={onDistanceChange} />
       </Map>
-      <MyLocationButton />
+      <MyLocationButton stops={stops} />
     </div>
   );
 }
