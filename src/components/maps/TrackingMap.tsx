@@ -3,6 +3,7 @@ import {
   Map as GoogleMap,
   AdvancedMarker,
   useMap,
+  useMapsLibrary,
 } from "@vis.gl/react-google-maps";
 import { useTheme } from "../../hooks/useTheme";
 import type { DriverLocation } from "@/types/location";
@@ -76,34 +77,64 @@ function TruckMarker({ heading, color }: { heading: number; color: string }) {
   );
 }
 
-// ─── Bounds fitter ────────────────────────────────────────────────────────────
+// ─── Follow selected driver ───────────────────────────────────────────────────
 
-function BoundsFitter({ locations }: { locations: DriverLocation[] }) {
+function FollowDriver({ location }: { location: DriverLocation | undefined }) {
   const map = useMap();
-  const lastKeyRef = useRef("");
 
   useEffect(() => {
-    if (!map || locations.length === 0) {
-      lastKeyRef.current = "";
-      return;
+    if (!map || !location) return;
+    map.panTo({ lat: location.lat, lng: location.lng });
+  }, [map, location?.lat, location?.lng]);
+
+  // Zoom in once when following starts
+  const wasFollowing = useRef(false);
+  useEffect(() => {
+    if (!map) return;
+    if (location && !wasFollowing.current) {
+      map.setZoom(15);
+      wasFollowing.current = true;
     }
-
-    const key = locations
-      .map((l) => `${l.driverId}:${l.lat.toFixed(4)},${l.lng.toFixed(4)}`)
-      .join("|");
-    if (key === lastKeyRef.current) return;
-    lastKeyRef.current = key;
-
-    if (locations.length === 1) {
-      map.panTo({ lat: locations[0].lat, lng: locations[0].lng });
-      map.setZoom(14);
-      return;
+    if (!location && wasFollowing.current) {
+      wasFollowing.current = false;
     }
+  }, [map, !!location]);
 
-    const bounds = new google.maps.LatLngBounds();
-    locations.forEach((l) => bounds.extend({ lat: l.lat, lng: l.lng }));
-    map.fitBounds(bounds, 60);
-  }, [map, locations]);
+  return null;
+}
+
+// ─── Trail polyline ───────────────────────────────────────────────────────────
+
+function TrailPolyline({
+  trail,
+  color,
+}: {
+  trail: Array<{ lat: number; lng: number }>;
+  color: string;
+}) {
+  const map = useMap();
+  const mapsLib = useMapsLibrary("maps");
+  const polylineRef = useRef<google.maps.Polyline | null>(null);
+
+  useEffect(() => {
+    if (!mapsLib || !map) return;
+    const polyline = new google.maps.Polyline({
+      strokeColor: color,
+      strokeWeight: 4,
+      strokeOpacity: 0.7,
+      map,
+    });
+    polylineRef.current = polyline;
+    return () => {
+      polyline.setMap(null);
+      polylineRef.current = null;
+    };
+  }, [mapsLib, map, color]);
+
+  useEffect(() => {
+    if (!polylineRef.current) return;
+    polylineRef.current.setPath(trail.map((p) => ({ lat: p.lat, lng: p.lng })));
+  }, [trail]);
 
   return null;
 }
@@ -132,12 +163,16 @@ function getDriverColor(index: number): string {
 interface TrackingMapProps {
   locations: DriverLocation[];
   driverNames: Record<string, string>;
+  selectedDriverId: string | null;
+  trail: Array<{ lat: number; lng: number }>;
   className?: string;
 }
 
 export function TrackingMap({
   locations,
   driverNames,
+  selectedDriverId,
+  trail,
   className,
 }: TrackingMapProps) {
   const { theme } = useTheme();
@@ -178,9 +213,23 @@ export function TrackingMap({
         zoomControl={true}
         style={{ width: "100%", height: "100%", filter: mapFilter }}
       >
-        <BoundsFitter locations={locations} />
+        <FollowDriver
+          location={
+            selectedDriverId
+              ? locations.find((l) => l.driverId === selectedDriverId)
+              : undefined
+          }
+        />
+
+        {selectedDriverId && trail.length > 1 && (
+          <TrailPolyline
+            trail={trail}
+            color={driverColorMap.get(selectedDriverId) ?? "#3b82f6"}
+          />
+        )}
 
         {locations.map((loc) => {
+          const isSelected = loc.driverId === selectedDriverId;
           const name = driverNames[loc.driverId] ?? "Motorista";
           const color = driverColorMap.get(loc.driverId) ?? "#3b82f6";
           const speed = loc.speed > 0 ? ` • ${Math.round(loc.speed)} km/h` : "";
@@ -191,8 +240,16 @@ export function TrackingMap({
               key={loc.driverId}
               position={{ lat: loc.lat, lng: loc.lng }}
               title={`${name}${speed} — ${ago}`}
+              zIndex={isSelected ? 999 : 1}
             >
-              <TruckMarker heading={loc.heading} color={color} />
+              <div
+                style={{
+                  transform: `scale(${isSelected ? 1.3 : 1})`,
+                  transition: "transform 0.2s ease",
+                }}
+              >
+                <TruckMarker heading={loc.heading} color={color} />
+              </div>
             </AdvancedMarker>
           );
         })}

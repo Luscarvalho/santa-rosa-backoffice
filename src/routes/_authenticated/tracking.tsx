@@ -1,14 +1,20 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { APIProvider } from "@vis.gl/react-google-maps";
-import { Radio, Truck, Gauge, Clock } from "lucide-react";
+import { Radio, Truck, Gauge, Clock, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { TrackingMap } from "@/components/maps/TrackingMap";
-import { useDriverLocations } from "@/hooks/useDriverLocations";
+import {
+  useDriverLocations,
+  useDriverTrails,
+} from "@/hooks/useDriverLocations";
 import { useDrivers } from "@/hooks/useDrivers";
 import { useRoutes } from "@/hooks/useRoutes";
 import type { DriverLocation } from "@/types/location";
+import type { Route as RouteType } from "@/types/route";
+import { RouteStatus } from "@/types/route";
 
 export const Route = createFileRoute("/_authenticated/tracking")({
   component: TrackingPage,
@@ -26,8 +32,10 @@ function TrackingPage() {
 
 function TrackingContent() {
   const locations = useDriverLocations();
+  const trails = useDriverTrails();
   const { data: drivers } = useDrivers();
   const { data: routes } = useRoutes();
+  const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
 
   const driverNames = useMemo(() => {
     const map: Record<string, string> = {};
@@ -37,13 +45,17 @@ function TrackingContent() {
     return map;
   }, [drivers]);
 
-  const routeNames = useMemo(() => {
-    const map: Record<string, string> = {};
+  const routeMap = useMemo(() => {
+    const map: Record<string, RouteType> = {};
     routes?.forEach((r) => {
-      map[r.id] = r.name;
+      map[r.id] = r;
     });
     return map;
   }, [routes]);
+
+  const selectedLocation = selectedDriverId
+    ? locations.find((l) => l.driverId === selectedDriverId)
+    : null;
 
   return (
     <div className="flex h-[calc(100vh-64px)] overflow-hidden -m-6">
@@ -61,6 +73,24 @@ function TrackingContent() {
           </p>
         </div>
 
+        {selectedDriverId && selectedLocation && (
+          <div className="p-3 border-b bg-muted/50">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">
+                Seguindo: {driverNames[selectedDriverId] ?? "Motorista"}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6"
+                onClick={() => setSelectedDriverId(null)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
           {locations.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-sm text-center px-4">
@@ -73,7 +103,13 @@ function TrackingContent() {
                 key={loc.driverId}
                 location={loc}
                 driverName={driverNames[loc.driverId]}
-                routeName={routeNames[loc.routeId]}
+                route={routeMap[loc.routeId]}
+                isSelected={loc.driverId === selectedDriverId}
+                onSelect={() =>
+                  setSelectedDriverId(
+                    loc.driverId === selectedDriverId ? null : loc.driverId,
+                  )
+                }
               />
             ))
           )}
@@ -85,6 +121,8 @@ function TrackingContent() {
         <TrackingMap
           locations={locations}
           driverNames={driverNames}
+          selectedDriverId={selectedDriverId}
+          trail={selectedDriverId ? (trails[selectedDriverId] ?? []) : []}
           className="h-full w-full"
         />
       </div>
@@ -94,20 +132,45 @@ function TrackingContent() {
 
 // ─── Driver card ──────────────────────────────────────────────────────────────
 
+const routeStatusLabels: Record<string, string> = {
+  [RouteStatus.Pending]: "Pendente",
+  [RouteStatus.Active]: "Ativa",
+  [RouteStatus.Completed]: "Concluída",
+  [RouteStatus.Cancelled]: "Cancelada",
+};
+
+const routeStatusVariants: Record<
+  string,
+  "default" | "secondary" | "destructive" | "outline"
+> = {
+  [RouteStatus.Pending]: "secondary",
+  [RouteStatus.Active]: "default",
+  [RouteStatus.Completed]: "outline",
+  [RouteStatus.Cancelled]: "destructive",
+};
+
 function DriverCard({
   location,
   driverName,
-  routeName,
+  route,
+  isSelected,
+  onSelect,
 }: {
   location: DriverLocation;
   driverName: string | undefined;
-  routeName: string | undefined;
+  route: RouteType | undefined;
+  isSelected: boolean;
+  onSelect: () => void;
 }) {
   const ago = formatTimeAgo(location.updatedAt?.toDate());
-  const isStale = isLocationStale(location.updatedAt?.toDate());
+  const status = route?.status ?? RouteStatus.Pending;
+  const isInactive = status !== RouteStatus.Active;
 
   return (
-    <Card className={isStale ? "opacity-60" : ""}>
+    <Card
+      className={`cursor-pointer transition-colors ${isInactive ? "opacity-60" : ""} ${isSelected ? "ring-2 ring-primary" : "hover:bg-muted/50"}`}
+      onClick={onSelect}
+    >
       <CardContent className="p-3 space-y-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">
@@ -117,16 +180,16 @@ function DriverCard({
             </span>
           </div>
           <Badge
-            variant={isStale ? "destructive" : "default"}
+            variant={routeStatusVariants[status] ?? "secondary"}
             className="text-xs shrink-0"
           >
-            {isStale ? "Inativo" : "Ativo"}
+            {routeStatusLabels[status] ?? status}
           </Badge>
         </div>
 
-        {routeName && (
+        {route && (
           <p className="text-xs text-muted-foreground truncate">
-            Rota: {routeName}
+            Rota: {route.name}
           </p>
         )}
 
@@ -156,9 +219,4 @@ function formatTimeAgo(date: Date | undefined): string {
   if (diffMin < 60) return `${diffMin}min atrás`;
   const diffHours = Math.floor(diffMin / 60);
   return `${diffHours}h atrás`;
-}
-
-function isLocationStale(date: Date | undefined): boolean {
-  if (!date) return true;
-  return Date.now() - date.getTime() > 5 * 60 * 1000; // 5 minutes
 }
