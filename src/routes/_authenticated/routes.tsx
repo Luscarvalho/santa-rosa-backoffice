@@ -48,7 +48,7 @@ import {
 import { useDrivers } from "@/hooks/useDrivers";
 import { useVehicles } from "@/hooks/useVehicles";
 import { useAuthStore } from "@/store/auth.store";
-import { type Route, RouteStatus } from "@/types/route";
+import { type Route as RouteType, RouteStatus } from "@/types/route";
 
 export const Route = createFileRoute("/_authenticated/routes")({
   component: RoutesPage,
@@ -98,7 +98,7 @@ function RoutesPage() {
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [editingRoute, setEditingRoute] = useState<Route | null>(null);
+  const [editingRoute, setEditingRoute] = useState<RouteType | null>(null);
 
   const form = useForm<RouteFormData>({
     resolver: zodResolver(routeSchema),
@@ -131,7 +131,7 @@ function RoutesPage() {
     }
   };
 
-  const handleEdit = (route: Route) => {
+  const handleEdit = (route: RouteType) => {
     setEditingRoute(route);
     form.reset({
       name: route.name,

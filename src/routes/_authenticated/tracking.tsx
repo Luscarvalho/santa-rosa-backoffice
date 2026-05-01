@@ -130,8 +130,6 @@ function TrackingContent() {
   );
 }
 
-// ─── Driver card ──────────────────────────────────────────────────────────────
-
 const routeStatusLabels: Record<string, string> = {
   [RouteStatus.Pending]: "Pendente",
   [RouteStatus.Active]: "Ativa",
@@ -207,8 +205,6 @@ function DriverCard({
     </Card>
   );
 }
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatTimeAgo(date: Date | undefined): string {
   if (!date) return "sem dados";

@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, memo, useRef, useEffect } from "react";
 import { APIProvider, useMapsLibrary } from "@vis.gl/react-google-maps";
 import {
   ArrowLeft,
@@ -24,26 +24,18 @@ import type { DeliveryAddress, Delivery } from "@/types/delivery";
 import type { Route as RouteType } from "@/types/route";
 import { RouteStatus } from "@/types/route";
 
-// ─── Route definition ────────────────────────────────────────────────────────
-
 export const Route = createFileRoute("/_authenticated/routes_/$routeId")({
   component: RoutePlannerPage,
 });
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 interface StopDraft {
-  /** Stable React key */
   _key: string;
   recipientName: string;
-  /** Full formatted address string shown in the input */
   addressText: string;
   lat: number | null;
   lng: number | null;
   notes: string;
 }
-
-// ─── Status labels ────────────────────────────────────────────────────────────
 
 const statusLabels: Record<string, string> = {
   [RouteStatus.Pending]: "Pendente",
@@ -62,16 +54,9 @@ const statusVariants: Record<
   [RouteStatus.Cancelled]: "destructive",
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-let keyCounter = 0;
-function newKey() {
-  return `stop-${++keyCounter}-${Date.now()}`;
-}
-
 function emptyStop(): StopDraft {
   return {
-    _key: newKey(),
+    _key: crypto.randomUUID(),
     recipientName: "",
     addressText: "",
     lat: null,
@@ -80,36 +65,32 @@ function emptyStop(): StopDraft {
   };
 }
 
-// ─── Stop card ────────────────────────────────────────────────────────────────
-
 interface StopCardProps {
   stop: StopDraft;
   index: number;
   total: number;
-  onChange: (updates: Partial<StopDraft>) => void;
-  onDelete: () => void;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
+  updateStop: (index: number, updates: Partial<StopDraft>) => void;
+  removeStop: (index: number) => void;
+  moveStop: (from: number, to: number) => void;
 }
 
-function StopCard({
+const StopCard = memo(function StopCard({
   stop,
   index,
   total,
-  onChange,
-  onDelete,
-  onMoveUp,
-  onMoveDown,
+  updateStop,
+  removeStop,
+  moveStop,
 }: StopCardProps) {
   const onPlaceSelect = useCallback(
     (place: { formattedAddress: string; lat: number; lng: number }) => {
-      onChange({
+      updateStop(index, {
         addressText: place.formattedAddress,
         lat: place.lat,
         lng: place.lng,
       });
     },
-    [onChange],
+    [updateStop, index],
   );
 
   return (
@@ -121,7 +102,7 @@ function StopCard({
 
         <Input
           value={stop.recipientName}
-          onChange={(e) => onChange({ recipientName: e.target.value })}
+          onChange={(e) => updateStop(index, { recipientName: e.target.value })}
           placeholder="Nome do destinatário"
           className="flex-1 h-8 text-sm"
         />
@@ -133,7 +114,7 @@ function StopCard({
             size="icon"
             className="h-7 w-7"
             disabled={index === 0}
-            onClick={onMoveUp}
+            onClick={() => moveStop(index, index - 1)}
             title="Mover para cima"
           >
             <ChevronUp className="h-3 w-3" />
@@ -144,7 +125,7 @@ function StopCard({
             size="icon"
             className="h-7 w-7"
             disabled={index === total - 1}
-            onClick={onMoveDown}
+            onClick={() => moveStop(index, index + 1)}
             title="Mover para baixo"
           >
             <ChevronDown className="h-3 w-3" />
@@ -154,7 +135,7 @@ function StopCard({
             variant="ghost"
             size="icon"
             className="h-7 w-7 text-destructive hover:text-destructive"
-            onClick={onDelete}
+            onClick={() => removeStop(index)}
             title="Remover parada"
           >
             <Trash2 className="h-3 w-3" />
@@ -165,7 +146,7 @@ function StopCard({
       <PlaceAutocomplete
         value={stop.addressText}
         onChange={(text) =>
-          onChange({ addressText: text, lat: null, lng: null })
+          updateStop(index, { addressText: text, lat: null, lng: null })
         }
         onPlaceSelect={onPlaceSelect}
         placeholder="Endereço (busque e selecione)"
@@ -173,7 +154,7 @@ function StopCard({
 
       <Input
         value={stop.notes}
-        onChange={(e) => onChange({ notes: e.target.value })}
+        onChange={(e) => updateStop(index, { notes: e.target.value })}
         placeholder="Observações (opcional)"
         className="h-8 text-sm"
       />
@@ -185,9 +166,7 @@ function StopCard({
       )}
     </div>
   );
-}
-
-// ─── Optimizer hook ───────────────────────────────────────────────────────────
+});
 
 function useOptimizer() {
   const routesLib = useMapsLibrary("routes");
@@ -239,8 +218,6 @@ function useOptimizer() {
   return { optimize, ready: !!routesLib };
 }
 
-// ─── PlannerContent — receives already-loaded data, no effects needed ─────────
-
 interface PlannerContentProps {
   routeId: string;
   route: RouteType;
@@ -258,7 +235,6 @@ function PlannerContent({
   const replaceDeliveries = useReplaceDeliveries(routeId);
   const { optimize, ready: optimizerReady } = useOptimizer();
 
-  // Lazy initializer — runs once on mount, no effect needed
   const [stops, setStops] = useState<StopDraft[]>(() =>
     initialDeliveries.length > 0
       ? initialDeliveries.map((d) => ({
@@ -272,14 +248,18 @@ function PlannerContent({
       : [emptyStop()],
   );
 
-  // mapDistance is set by the Directions API after rendering.
-  // Falls back to the value stored in Firestore until the map computes one.
   const [mapDistance, setMapDistance] = useState<number | null>(null);
   const estimatedDistance = mapDistance ?? route.estimatedDistance ?? 0;
   const [optimizing, setOptimizing] = useState(false);
+  const [optimizeError, setOptimizeError] = useState(false);
   const [savedMessage, setSavedMessage] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── Stop mutations ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   const updateStop = useCallback(
     (index: number, updates: Partial<StopDraft>) => {
@@ -292,29 +272,32 @@ function PlannerContent({
 
   const addStop = () => setStops((prev) => [...prev, emptyStop()]);
 
-  const removeStop = (index: number) => {
+  const removeStop = useCallback((index: number) => {
     setStops((prev) => prev.filter((_, i) => i !== index));
-  };
+  }, []);
 
-  const moveStop = (from: number, to: number) => {
+  const moveStop = useCallback((from: number, to: number) => {
     setStops((prev) => {
       const arr = [...prev];
       const [item] = arr.splice(from, 1);
       arr.splice(to, 0, item);
       return arr;
     });
-  };
-
-  // ── Optimize ───────────────────────────────────────────────────────────────
+  }, []);
 
   const handleOptimize = async () => {
     setOptimizing(true);
+    setOptimizeError(false);
     const reordered = await optimize(stops);
     setOptimizing(false);
-    if (reordered) setStops(reordered);
+    if (reordered) {
+      setStops(reordered);
+    } else {
+      setOptimizeError(true);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => setOptimizeError(false), 4000);
+    }
   };
-
-  // ── Save ───────────────────────────────────────────────────────────────────
 
   const handleSave = async () => {
     const stopInputs = stops
@@ -341,10 +324,9 @@ function PlannerContent({
     });
 
     setSavedMessage(true);
-    setTimeout(() => setSavedMessage(false), 3000);
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => setSavedMessage(false), 3000);
   };
-
-  // ── Derived data ───────────────────────────────────────────────────────────
 
   const mapStops: MapStop[] = useMemo(() => {
     let idx = 0;
@@ -368,9 +350,7 @@ function PlannerContent({
 
   return (
     <div className="flex h-[calc(100vh-64px)] overflow-hidden">
-      {/* ── Left panel ── */}
       <div className="w-100 shrink-0 border-r flex flex-col overflow-hidden bg-background">
-        {/* Header */}
         <div className="p-4 border-b space-y-1 shrink-0">
           <Button
             variant="ghost"
@@ -400,7 +380,6 @@ function PlannerContent({
           )}
         </div>
 
-        {/* Stops list */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           <div className="flex items-center justify-between mb-1">
             <h2 className="text-sm font-medium">
@@ -417,16 +396,19 @@ function PlannerContent({
               stop={stop}
               index={idx}
               total={stops.length}
-              onChange={(updates) => updateStop(idx, updates)}
-              onDelete={() => removeStop(idx)}
-              onMoveUp={() => moveStop(idx, idx - 1)}
-              onMoveDown={() => moveStop(idx, idx + 1)}
+              updateStop={updateStop}
+              removeStop={removeStop}
+              moveStop={moveStop}
             />
           ))}
         </div>
 
-        {/* Footer */}
         <div className="p-4 border-t space-y-2 shrink-0">
+          {optimizeError && (
+            <p className="text-sm text-center text-destructive font-medium">
+              Não foi possível otimizar. Verifique os endereços.
+            </p>
+          )}
           {savedMessage && (
             <p className="text-sm text-center text-green-600 font-medium">
               ✓ Paradas salvas com sucesso!
@@ -474,7 +456,6 @@ function PlannerContent({
         </div>
       </div>
 
-      {/* ── Right panel: map ── */}
       <div className="flex-1 relative">
         {mapStops.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
@@ -492,8 +473,6 @@ function PlannerContent({
     </div>
   );
 }
-
-// ─── PlannerLoader — fetches data, shows loading/error, then mounts content ───
 
 function PlannerLoader({ routeId }: { routeId: string }) {
   const navigate = useNavigate();
@@ -520,8 +499,6 @@ function PlannerLoader({ routeId }: { routeId: string }) {
     );
   }
 
-  // key={routeId} ensures PlannerContent remounts if navigating between routes,
-  // so the lazy initializer always reflects the correct deliveries.
   return (
     <PlannerContent
       key={routeId}
@@ -531,8 +508,6 @@ function PlannerLoader({ routeId }: { routeId: string }) {
     />
   );
 }
-
-// ─── Page wrapper (provides Maps API) ────────────────────────────────────────
 
 function RoutePlannerPage() {
   const { routeId } = Route.useParams();
@@ -551,7 +526,6 @@ function RoutePlannerPage() {
   }
 
   return (
-    // libraries={["places"]} pre-loads Places for PlaceAutocomplete
     <APIProvider apiKey={apiKey} libraries={["places"]}>
       <PlannerLoader routeId={routeId} />
     </APIProvider>
