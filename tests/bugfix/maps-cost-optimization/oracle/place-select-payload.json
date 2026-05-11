@@ -1,0 +1,43 @@
+{
+  "_comment": "Oracle captured from F (unfixed code). PlaceAutocomplete builds onPlaceSelect payload in src/components/maps/PlaceAutocomplete.tsx as { formattedAddress: place.formatted_address, lat: place.geometry.location.lat(), lng: place.geometry.location.lng() }.",
+  "_source": "src/components/maps/PlaceAutocomplete.tsx — place_changed handler",
+  "_captured_on_branch": "F (pre-fix)",
+  "entries": [
+    {
+      "input": {
+        "formattedAddress": "Av Djalma Batista, 1661 - Manaus",
+        "lat": -3.1,
+        "lng": -60.01
+      },
+      "expected": {
+        "formattedAddress": "Av Djalma Batista, 1661 - Manaus",
+        "lat": -3.1,
+        "lng": -60.01
+      }
+    },
+    {
+      "input": {
+        "formattedAddress": "Rua Acre, 100 - Manaus, AM",
+        "lat": -3.119,
+        "lng": -60.021
+      },
+      "expected": {
+        "formattedAddress": "Rua Acre, 100 - Manaus, AM",
+        "lat": -3.119,
+        "lng": -60.021
+      }
+    },
+    {
+      "input": {
+        "formattedAddress": "Unicode: Café — Espírito Santo",
+        "lat": -20.3155,
+        "lng": -40.3128
+      },
+      "expected": {
+        "formattedAddress": "Unicode: Café — Espírito Santo",
+        "lat": -20.3155,
+        "lng": -40.3128
+      }
+    }
+  ]
+}

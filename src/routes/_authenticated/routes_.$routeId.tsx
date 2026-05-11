@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useCallback, useMemo, memo, useRef, useEffect } from "react";
-import { APIProvider, useMapsLibrary } from "@vis.gl/react-google-maps";
+import { useMapsLibrary } from "@vis.gl/react-google-maps";
 import {
   ArrowLeft,
   ChevronDown,
@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { PlaceAutocomplete } from "@/components/maps/PlaceAutocomplete";
 import { RouteMap } from "@/components/maps/RouteMap";
-import type { MapStop } from "@/components/maps/RouteMap";
+import type { MapStop, DirectionsError } from "@/components/maps/RouteMap";
 import { useRoute } from "@/hooks/useRoutes";
 import { useDeliveries, useReplaceDeliveries } from "@/hooks/useDeliveries";
 import { useDrivers } from "@/hooks/useDrivers";
@@ -25,7 +25,7 @@ import type { Route as RouteType } from "@/types/route";
 import { RouteStatus } from "@/types/route";
 
 export const Route = createFileRoute("/_authenticated/routes_/$routeId")({
-  component: RoutePlannerPage,
+  component: PlannerLoader,
 });
 
 interface StopDraft {
@@ -253,6 +253,19 @@ function PlannerContent({
   const [optimizing, setOptimizing] = useState(false);
   const [optimizeError, setOptimizeError] = useState(false);
   const [savedMessage, setSavedMessage] = useState(false);
+
+  // `directionsError` is derived from the current `stops`: any stops change
+  // conceptually voids the previous error because a new request will fire.
+  // We track the stops snapshot that produced the last error so the state
+  // auto-resets during render when stops change — the React-recommended
+  // pattern for "state that depends on props" without an effect.
+  // See: https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  const [directionsError, setDirectionsError] = useState<DirectionsError | null>(null);
+  const [lastStopsForError, setLastStopsForError] = useState(stops);
+  if (lastStopsForError !== stops) {
+    setLastStopsForError(stops);
+    setDirectionsError(null);
+  }
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -283,6 +296,10 @@ function PlannerContent({
       arr.splice(to, 0, item);
       return arr;
     });
+  }, []);
+
+  const onDirectionsError = useCallback((err: DirectionsError) => {
+    setDirectionsError(err);
   }, []);
 
   const handleOptimize = async () => {
@@ -464,9 +481,17 @@ function PlannerContent({
             </div>
           </div>
         )}
+        {directionsError && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+            <div className="bg-destructive/90 text-destructive-foreground rounded-lg px-4 py-2 text-sm font-medium shadow-md">
+              Não foi possível calcular a rota ({directionsError.status}). Verifique os endereços ou tente novamente.
+            </div>
+          </div>
+        )}
         <RouteMap
           stops={mapStops}
           onDistanceChange={setMapDistance}
+          onError={onDirectionsError}
           className="w-full h-full"
         />
       </div>
@@ -474,7 +499,8 @@ function PlannerContent({
   );
 }
 
-function PlannerLoader({ routeId }: { routeId: string }) {
+function PlannerLoader() {
+  const { routeId } = Route.useParams();
   const navigate = useNavigate();
   const { data: route, isLoading: routeLoading } = useRoute(routeId);
   const { data: deliveries, isLoading: deliveriesLoading } =
@@ -506,28 +532,5 @@ function PlannerLoader({ routeId }: { routeId: string }) {
       route={route}
       initialDeliveries={deliveries ?? []}
     />
-  );
-}
-
-function RoutePlannerPage() {
-  const { routeId } = Route.useParams();
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string;
-
-  if (!apiKey) {
-    return (
-      <div className="p-8 text-center space-y-2">
-        <p className="font-semibold">Configuração necessária</p>
-        <p className="text-sm text-muted-foreground">
-          Adicione <code className="font-mono">VITE_GOOGLE_MAPS_API_KEY</code>{" "}
-          ao <code className="font-mono">.env</code> para usar o planejador.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <APIProvider apiKey={apiKey} libraries={["places"]}>
-      <PlannerLoader routeId={routeId} />
-    </APIProvider>
   );
 }

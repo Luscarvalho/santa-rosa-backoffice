@@ -1,0 +1,39 @@
+{
+  "_comment": "Oracle captured from F (unfixed code). TrackingMap renders one AdvancedMarker per DriverLocation. See src/components/maps/TrackingMap.tsx — locations.map(loc => <AdvancedMarker key={loc.driverId} ... />).",
+  "_source": "src/components/maps/TrackingMap.tsx — locations.map render",
+  "_captured_on_branch": "F (pre-fix)",
+  "samples": [
+    {
+      "locations": [],
+      "selectedDriverId": null,
+      "expectedMarkerCount": 0
+    },
+    {
+      "locations": [
+        { "driverId": "d1", "lat": -3.119, "lng": -60.021 }
+      ],
+      "selectedDriverId": null,
+      "expectedMarkerCount": 1
+    },
+    {
+      "locations": [
+        { "driverId": "d1", "lat": -3.119, "lng": -60.021 },
+        { "driverId": "d2", "lat": -3.12, "lng": -60.019 },
+        { "driverId": "d3", "lat": -3.122, "lng": -60.015 }
+      ],
+      "selectedDriverId": "d2",
+      "expectedMarkerCount": 3
+    },
+    {
+      "locations": [
+        { "driverId": "d1", "lat": -3.11, "lng": -60.0 },
+        { "driverId": "d2", "lat": -3.12, "lng": -60.01 },
+        { "driverId": "d3", "lat": -3.13, "lng": -60.02 },
+        { "driverId": "d4", "lat": -3.14, "lng": -60.03 },
+        { "driverId": "d5", "lat": -3.15, "lng": -60.04 }
+      ],
+      "selectedDriverId": null,
+      "expectedMarkerCount": 5
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "_comment": "Oracle snapshot captured from F (unfixed code). Records the rounding contract of DirectionsLayer.onDistanceChange in src/components/maps/RouteMap.tsx: km = Math.round(totalMeters / 100) / 10. Any change to this rule will make the preservation test fail.",
+  "_source": "src/components/maps/RouteMap.tsx — DirectionsLayer onDistanceChange",
+  "_captured_on_branch": "F (pre-fix)",
+  "entries": [
+    { "totalMeters": 0, "km": 0 },
+    { "totalMeters": 1, "km": 0 },
+    { "totalMeters": 49, "km": 0 },
+    { "totalMeters": 50, "km": 0.1 },
+    { "totalMeters": 99, "km": 0.1 },
+    { "totalMeters": 100, "km": 0.1 },
+    { "totalMeters": 149, "km": 0.1 },
+    { "totalMeters": 150, "km": 0.2 },
+    { "totalMeters": 200, "km": 0.2 },
+    { "totalMeters": 500, "km": 0.5 },
+    { "totalMeters": 950, "km": 1 },
+    { "totalMeters": 999, "km": 1 },
+    { "totalMeters": 1000, "km": 1 },
+    { "totalMeters": 1049, "km": 1 },
+    { "totalMeters": 1050, "km": 1.1 },
+    { "totalMeters": 1234, "km": 1.2 },
+    { "totalMeters": 1250, "km": 1.3 },
+    { "totalMeters": 1999, "km": 2 },
+    { "totalMeters": 2000, "km": 2 },
+    { "totalMeters": 4567, "km": 4.6 },
+    { "totalMeters": 10050, "km": 10.1 },
+    { "totalMeters": 12345, "km": 12.3 },
+    { "totalMeters": 123456, "km": 123.5 },
+    { "totalMeters": 1000000, "km": 1000 }
+  ]
+}

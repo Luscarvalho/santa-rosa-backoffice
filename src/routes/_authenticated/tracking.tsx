@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { APIProvider } from "@vis.gl/react-google-maps";
 import { Radio, Truck, Gauge, Clock, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,18 +16,8 @@ import type { Route as RouteType } from "@/types/route";
 import { RouteStatus } from "@/types/route";
 
 export const Route = createFileRoute("/_authenticated/tracking")({
-  component: TrackingPage,
+  component: TrackingContent,
 });
-
-function TrackingPage() {
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string;
-
-  return (
-    <APIProvider apiKey={apiKey}>
-      <TrackingContent />
-    </APIProvider>
-  );
-}
 
 function TrackingContent() {
   const locations = useDriverLocations();

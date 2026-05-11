@@ -1,4 +1,4 @@
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   Map as GoogleMap,
   AdvancedMarker,
@@ -6,6 +6,8 @@ import {
   useMapsLibrary,
 } from "@vis.gl/react-google-maps";
 import { useTheme } from "../../hooks/useTheme";
+import { useSystemColorScheme } from "@/hooks/useSystemColorScheme";
+import { simplifyPath } from "@/lib/simplify-path";
 import type { DriverLocation } from "@/types/location";
 
 const MANAUS_CENTER = { lat: -3.119, lng: -60.021 };
@@ -81,24 +83,29 @@ function TruckMarker({ heading, color }: { heading: number; color: string }) {
 
 function FollowDriver({ location }: { location: DriverLocation | undefined }) {
   const map = useMap();
+  // Extract primitives so the effect deps are statically analyzable and don't
+  // need `location?.lat` inline (which the exhaustive-deps lint can't validate).
+  const lat = location?.lat;
+  const lng = location?.lng;
+  const hasLocation = location != null;
 
   useEffect(() => {
-    if (!map || !location) return;
-    map.panTo({ lat: location.lat, lng: location.lng });
-  }, [map, location?.lat, location?.lng]);
+    if (!map || lat === undefined || lng === undefined) return;
+    map.panTo({ lat, lng });
+  }, [map, lat, lng]);
 
-  // Zoom in once when following starts
+  // Zoom in once when following starts.
   const wasFollowing = useRef(false);
   useEffect(() => {
     if (!map) return;
-    if (location && !wasFollowing.current) {
+    if (hasLocation && !wasFollowing.current) {
       map.setZoom(15);
       wasFollowing.current = true;
     }
-    if (!location && wasFollowing.current) {
+    if (!hasLocation && wasFollowing.current) {
       wasFollowing.current = false;
     }
-  }, [map, !!location]);
+  }, [map, hasLocation]);
 
   return null;
 }
@@ -133,7 +140,9 @@ function TrailPolyline({
 
   useEffect(() => {
     if (!polylineRef.current) return;
-    polylineRef.current.setPath(trail.map((p) => ({ lat: p.lat, lng: p.lng })));
+    polylineRef.current.setPath(
+      simplifyPath(trail, { toleranceMeters: 15 }).map((p) => ({ lat: p.lat, lng: p.lng })),
+    );
   }, [trail]);
 
   return null;
@@ -177,28 +186,34 @@ export function TrackingMap({
 }: TrackingMapProps) {
   const { theme } = useTheme();
   const mapId = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID as string | undefined;
-  const systemTheme = useSyncExternalStore(
-    (onStoreChange) => {
-      const mq = window.matchMedia("(prefers-color-scheme: dark)");
-      mq.addEventListener("change", onStoreChange);
-      return () => mq.removeEventListener("change", onStoreChange);
-    },
-    () =>
-      window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light",
-    () => "light",
-  );
+  const systemTheme = useSystemColorScheme();
   const resolvedTheme = theme === "system" ? systemTheme : theme;
-  const mapFilter =
-    resolvedTheme === "dark"
-      ? "saturate(0.72) brightness(0.92) contrast(0.95)"
-      : "none";
 
-  // Stable color assignment by sorted driver IDs
-  const driverColorMap = new Map<string, string>();
-  const sortedIds = [...new Set(locations.map((l) => l.driverId))].sort();
-  sortedIds.forEach((id, idx) => driverColorMap.set(id, getDriverColor(idx)));
+  // Stable color assignment by sorted driver IDs — memoized to preserve
+  // referential identity across renders where the set of IDs is unchanged.
+  //
+  // `sortedIds` is the canonical source of truth; `sortedIdsKey` is a
+  // primitive string derived from it so `useMemo`'s dependency check can
+  // detect "same set, same order" cheaply. The key is also used for
+  // memoizing the color Map below without round-tripping through
+  // `split("|")` — driver IDs can legally contain `|` even if our current
+  // generator (UUIDs) doesn't.
+  const sortedIds = useMemo(
+    () => [...new Set(locations.map((l) => l.driverId))].sort(),
+    [locations],
+  );
+  const sortedIdsKey = sortedIds.join("|");
+
+  const driverColorMap = useMemo(() => {
+    const map = new Map<string, string>();
+    sortedIds.forEach((id, idx) => map.set(id, getDriverColor(idx)));
+    return map;
+    // Intentionally keyed on the primitive `sortedIdsKey` rather than
+    // `sortedIds`: two arrays with identical contents hash to the same
+    // string, so the memo survives even if `sortedIds` briefly gets a new
+    // reference before the outer memo stabilizes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortedIdsKey]);
 
   return (
     <div className={className} style={{ position: "relative" }}>
@@ -211,7 +226,7 @@ export function TrackingMap({
         disableDefaultUI={true}
         fullscreenControl={true}
         zoomControl={true}
-        style={{ width: "100%", height: "100%", filter: mapFilter }}
+        style={{ width: "100%", height: "100%" }}
       >
         <FollowDriver
           location={

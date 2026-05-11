@@ -1,0 +1,76 @@
+{
+  "_comment": "Oracle captured from F (unfixed code). TrackingMap.FollowDriver emits: (a) map.panTo({lat,lng}) whenever location.lat/lng changes (including first select); (b) map.setZoom(15) exactly once when follow transitions from no-location to has-location.",
+  "_source": "src/components/maps/TrackingMap.tsx — FollowDriver effects",
+  "_captured_on_branch": "F (pre-fix)",
+  "_note": "panTo is emitted by the FollowDriver panTo effect (dependency: map, location?.lat, location?.lng). setZoom(15) is emitted once by the wasFollowing=true transition.",
+  "scenarios": [
+    {
+      "name": "no selection — no panTo, no setZoom",
+      "steps": [
+        {
+          "locations": [
+            { "driverId": "d1", "lat": -3.1, "lng": -60.0 }
+          ],
+          "selectedDriverId": null
+        }
+      ],
+      "expectedCalls": []
+    },
+    {
+      "name": "select d1 — panTo + setZoom(15) on first follow",
+      "steps": [
+        {
+          "locations": [
+            { "driverId": "d1", "lat": -3.1, "lng": -60.0 }
+          ],
+          "selectedDriverId": null
+        },
+        {
+          "locations": [
+            { "driverId": "d1", "lat": -3.1, "lng": -60.0 }
+          ],
+          "selectedDriverId": "d1"
+        }
+      ],
+      "expectedCalls": [
+        { "method": "panTo", "pos": { "lat": -3.1, "lng": -60.0 } },
+        { "method": "setZoom", "zoom": 15 }
+      ]
+    },
+    {
+      "name": "select d1 then d1 moves — panTo each move, setZoom(15) only at first follow",
+      "steps": [
+        {
+          "locations": [
+            { "driverId": "d1", "lat": -3.1, "lng": -60.0 }
+          ],
+          "selectedDriverId": null
+        },
+        {
+          "locations": [
+            { "driverId": "d1", "lat": -3.1, "lng": -60.0 }
+          ],
+          "selectedDriverId": "d1"
+        },
+        {
+          "locations": [
+            { "driverId": "d1", "lat": -3.11, "lng": -60.01 }
+          ],
+          "selectedDriverId": "d1"
+        },
+        {
+          "locations": [
+            { "driverId": "d1", "lat": -3.12, "lng": -60.02 }
+          ],
+          "selectedDriverId": "d1"
+        }
+      ],
+      "expectedCalls": [
+        { "method": "panTo", "pos": { "lat": -3.1, "lng": -60.0 } },
+        { "method": "setZoom", "zoom": 15 },
+        { "method": "panTo", "pos": { "lat": -3.11, "lng": -60.01 } },
+        { "method": "panTo", "pos": { "lat": -3.12, "lng": -60.02 } }
+      ]
+    }
+  ]
+}

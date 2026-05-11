@@ -1,0 +1,17 @@
+{
+  "_comment": "Oracle captured from F (unfixed code). <Map colorScheme> is computed from the theme context + prefers-color-scheme matchMedia: 'dark' => DARK, 'light' => LIGHT, 'system' + prefers-dark => DARK, 'system' + no prefers-dark => LIGHT.",
+  "_source": "src/components/maps/{RouteMap,TrackingMap}.tsx — resolvedTheme derivation",
+  "_captured_on_branch": "F (pre-fix)",
+  "entries": [
+    { "component": "RouteMap",    "theme": "dark",   "prefersDark": false, "expected": "DARK" },
+    { "component": "RouteMap",    "theme": "dark",   "prefersDark": true,  "expected": "DARK" },
+    { "component": "RouteMap",    "theme": "light",  "prefersDark": false, "expected": "LIGHT" },
+    { "component": "RouteMap",    "theme": "light",  "prefersDark": true,  "expected": "LIGHT" },
+    { "component": "RouteMap",    "theme": "system", "prefersDark": true,  "expected": "DARK" },
+    { "component": "RouteMap",    "theme": "system", "prefersDark": false, "expected": "LIGHT" },
+    { "component": "TrackingMap", "theme": "dark",   "prefersDark": false, "expected": "DARK" },
+    { "component": "TrackingMap", "theme": "light",  "prefersDark": true,  "expected": "LIGHT" },
+    { "component": "TrackingMap", "theme": "system", "prefersDark": true,  "expected": "DARK" },
+    { "component": "TrackingMap", "theme": "system", "prefersDark": false, "expected": "LIGHT" }
+  ]
+}

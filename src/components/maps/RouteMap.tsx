@@ -3,7 +3,6 @@ import {
   useRef,
   useState,
   useCallback,
-  useSyncExternalStore,
 } from "react";
 import {
   Map,
@@ -13,6 +12,8 @@ import {
 } from "@vis.gl/react-google-maps";
 import { Locate, Undo2 } from "lucide-react";
 import { useTheme } from "../../hooks/useTheme";
+import { useSystemColorScheme } from "@/hooks/useSystemColorScheme";
+import { directionsCache } from "@/lib/directions-cache";
 
 // Geographic center of Manaus
 const MANAUS_CENTER = { lat: -3.119, lng: -60.021 };
@@ -23,9 +24,15 @@ export interface MapStop {
   label: string;
 }
 
+export interface DirectionsError {
+  status: string;
+  stopsGeoKey: string;
+}
+
 interface DirectionsLayerProps {
   stops: MapStop[];
   onDistanceChange?: (km: number) => void;
+  onError?: (err: DirectionsError) => void;
 }
 
 function fitMapToStops(map: google.maps.Map, stops: MapStop[]) {
@@ -42,11 +49,21 @@ function fitMapToStops(map: google.maps.Map, stops: MapStop[]) {
 }
 
 /** Renders the route polyline using Directions API. Must be a child of <Map>. */
-function DirectionsLayer({ stops, onDistanceChange }: DirectionsLayerProps) {
+function DirectionsLayer({ stops, onDistanceChange, onError }: DirectionsLayerProps) {
   const map = useMap();
   const routesLib = useMapsLibrary("routes");
   const rendererRef = useRef<google.maps.DirectionsRenderer | null>(null);
   const lastStopsGeoKeyRef = useRef("");
+
+  // Keep callbacks in refs so the stops-driven effect doesn't need them as
+  // dependencies (avoids re-firing the debounce when the parent re-renders
+  // with a new inline function).
+  const onDistanceChangeRef = useRef(onDistanceChange);
+  const onErrorRef = useRef(onError);
+  useEffect(() => {
+    onDistanceChangeRef.current = onDistanceChange;
+    onErrorRef.current = onError;
+  });
 
   // Create and attach renderer once
   useEffect(() => {
@@ -67,7 +84,7 @@ function DirectionsLayer({ stops, onDistanceChange }: DirectionsLayerProps) {
     };
   }, [routesLib, map]);
 
-  // Re-compute route whenever stops change (debounced to save API calls)
+  // Re-compute route whenever stops change (debounced to save API calls).
   useEffect(() => {
     if (!routesLib || !rendererRef.current) return;
 
@@ -75,13 +92,27 @@ function DirectionsLayer({ stops, onDistanceChange }: DirectionsLayerProps) {
     if (stopsGeoKey === lastStopsGeoKeyRef.current) return;
     lastStopsGeoKeyRef.current = stopsGeoKey;
 
+    // Cache hit: serve result immediately without a network call.
+    const cached = directionsCache.get(stopsGeoKey);
+    if (cached != null) {
+      rendererRef.current.setDirections(cached.result);
+      onDistanceChangeRef.current?.(Math.round(cached.totalMeters / 100) / 10);
+      return;
+    }
+
     if (stops.length < 2) {
       rendererRef.current.setDirections({ routes: [] } as never);
       return;
     }
 
+    // `cancelled` guards against the effect tearing down (stops changed again,
+    // component unmounted) while the async DirectionsService call is in flight.
+    // Without it, the success path would still call `setDirections` on a
+    // detached renderer and `onError`/`onDistanceChange` on a stale parent.
+    let cancelled = false;
+
     const timer = setTimeout(() => {
-      if (!rendererRef.current) return;
+      if (cancelled || !rendererRef.current) return;
       const service = new routesLib.DirectionsService();
       const origin = stops[0];
       const destination = stops[stops.length - 1];
@@ -99,21 +130,37 @@ function DirectionsLayer({ stops, onDistanceChange }: DirectionsLayerProps) {
           travelMode: routesLib.TravelMode.DRIVING,
         },
         (result, status) => {
-          if (status !== "OK" || !result || !rendererRef.current) return;
-          rendererRef.current.setDirections(result);
-          if (onDistanceChange) {
-            const totalMeters = result.routes[0].legs.reduce(
-              (sum, leg) => sum + (leg.distance?.value ?? 0),
-              0,
+          if (cancelled || !rendererRef.current) return;
+          if (status !== "OK" || !result) {
+            console.error(
+              `[DirectionsLayer] Directions request failed: status=${status}, key=${stopsGeoKey}`,
             );
-            onDistanceChange(Math.round(totalMeters / 100) / 10);
+            onErrorRef.current?.({ status, stopsGeoKey });
+            // lastStopsGeoKeyRef already holds stopsGeoKey — no retry until stops change.
+            return;
           }
+          const totalMeters = result.routes[0].legs.reduce(
+            (sum, leg) => sum + (leg.distance?.value ?? 0),
+            0,
+          );
+          // Populate cache before rendering so subsequent hits are served immediately.
+          directionsCache.set(stopsGeoKey, {
+            key: stopsGeoKey,
+            result,
+            totalMeters,
+            createdAt: Date.now(),
+          });
+          rendererRef.current.setDirections(result);
+          onDistanceChangeRef.current?.(Math.round(totalMeters / 100) / 10);
         },
       );
     }, 800);
 
-    return () => clearTimeout(timer);
-  }, [stops, routesLib, onDistanceChange]);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [stops, routesLib]);
 
   return null;
 }
@@ -161,6 +208,7 @@ function AutoGeolocate({ hasStops }: { hasStops: boolean }) {
 interface RouteMapProps {
   stops: MapStop[];
   onDistanceChange?: (km: number) => void;
+  onError?: (err: DirectionsError) => void;
   className?: string;
 }
 
@@ -250,27 +298,13 @@ function MyLocationButton({ stops }: { stops: MapStop[] }) {
 export function RouteMap({
   stops,
   onDistanceChange,
+  onError,
   className,
 }: RouteMapProps) {
   const { theme } = useTheme();
   const mapId = import.meta.env.VITE_GOOGLE_MAPS_MAP_ID as string | undefined;
-  const systemTheme = useSyncExternalStore(
-    (onStoreChange) => {
-      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-      mediaQuery.addEventListener("change", onStoreChange);
-      return () => mediaQuery.removeEventListener("change", onStoreChange);
-    },
-    () =>
-      window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light",
-    () => "light",
-  );
+  const systemTheme = useSystemColorScheme();
   const resolvedTheme = theme === "system" ? systemTheme : theme;
-  const mapFilter =
-    resolvedTheme === "dark"
-      ? "saturate(0.72) brightness(0.92) contrast(0.95)"
-      : "none";
 
   return (
     <div className={className} style={{ position: "relative" }}>
@@ -282,7 +316,7 @@ export function RouteMap({
         gestureHandling="greedy"
         disableDefaultUI={true}
         fullscreenControl={true}
-        style={{ width: "100%", height: "100%", filter: mapFilter }}
+        style={{ width: "100%", height: "100%" }}
       >
         <AutoGeolocate hasStops={stops.length > 0} />
         <BoundsFitter stops={stops} />
@@ -319,7 +353,7 @@ export function RouteMap({
           </AdvancedMarker>
         ))}
 
-        <DirectionsLayer stops={stops} onDistanceChange={onDistanceChange} />
+        <DirectionsLayer stops={stops} onDistanceChange={onDistanceChange} onError={onError} />
       </Map>
       <MyLocationButton stops={stops} />
     </div>

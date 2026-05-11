@@ -96,6 +96,7 @@ await setDoc(doc(db, "locations", driverRef.id), {
   speed: 42.5,
   heading: 180,
   accuracy: 5,
+  status: "active",
   updatedAt: Timestamp.now(),
 });
 
